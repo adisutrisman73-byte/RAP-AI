@@ -1,0 +1,6 @@
+{
+  "name": "Konverter RAB ke RAP",
+  "description": "Aplikasi otomatis untuk mengonversi dokumen RAB (PDF/Teks) menjadi RAP berbasis standard AHSP terbaru, lengkap dengan rincian harga bahan, upah kerja, analisis koefisien, dan ekspor Excel.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
