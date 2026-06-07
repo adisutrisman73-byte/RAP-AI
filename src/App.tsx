@@ -13,7 +13,7 @@ import {
   Sparkles
 } from 'lucide-react';
 
-import { RABItem, ConstructionProject } from './types';
+import { RABItem, ConstructionProject, SavedProject } from './types';
 import { AHSP_DATABASE, MOCK_RAB_DATA, REF_PRICES } from './data/ahspData';
 import { calculateProjectRAP } from './utils/constructionEngine';
 
@@ -37,6 +37,11 @@ export default function App() {
   const [mappings, setMappings] = useState<{ [rabId: string]: string }>({});
   const [customPrices, setCustomPrices] = useState<{ [name: string]: number }>({ ...REF_PRICES });
   
+  // Storage State Management
+  const [savedProjects, setSavedProjects] = useState<SavedProject[]>([]);
+  const [currentProjectId, setCurrentProjectId] = useState<string | null>(null);
+  const [initLoaded, setInitLoaded] = useState(false);
+
   // UI Helpers
   const [loading, setLoading] = useState(false);
   const [loadingStep, setLoadingStep] = useState('');
@@ -47,6 +52,139 @@ export default function App() {
   const [expandedItems, setExpandedItems] = useState<{ [id: string]: boolean }>({});
   const [editingResourceKey, setEditingResourceKey] = useState<string | null>(null);
   const [editingResourceVal, setEditingResourceVal] = useState<number>(0);
+
+  // Load saved projects list & draft state from localStorage on first boot
+  useEffect(() => {
+    try {
+      const activeDraft = localStorage.getItem('rab_active_draft');
+      if (activeDraft) {
+        const parsed = JSON.parse(activeDraft);
+        if (parsed.projectName !== undefined) setProjectName(parsed.projectName);
+        if (parsed.projectLocation !== undefined) setProjectLocation(parsed.projectLocation);
+        if (parsed.ownerName !== undefined) setOwnerName(parsed.ownerName);
+        if (parsed.rabItems !== undefined) setRabItems(parsed.rabItems);
+        if (parsed.mappings !== undefined) setMappings(parsed.mappings);
+        if (parsed.customPrices !== undefined) setCustomPrices(parsed.customPrices);
+        if (parsed.currentProjectId !== undefined) setCurrentProjectId(parsed.currentProjectId);
+      }
+    } catch (e) {
+      console.warn("Gagal merestorasi draf perhitungan yang sedang aktif:", e);
+    }
+    
+    try {
+      const saved = localStorage.getItem('saved_rab_projects');
+      if (saved) {
+        setSavedProjects(JSON.parse(saved));
+      }
+    } catch (e) {
+      console.warn("Gagal memuat daftar proyek dari penyimpanan:", e);
+    }
+    setInitLoaded(true);
+  }, []);
+
+  // Sync state to current active session draft in localStorage automatically on any change
+  useEffect(() => {
+    if (!initLoaded) return;
+    try {
+      const draft = {
+        projectName,
+        projectLocation,
+        ownerName,
+        rabItems,
+        mappings,
+        customPrices,
+        currentProjectId
+      };
+      localStorage.setItem('rab_active_draft', JSON.stringify(draft));
+    } catch (e) {
+      console.error("Gagal mencadangkan draf perhitungan secara otomatis:", e);
+    }
+  }, [projectName, projectLocation, ownerName, rabItems, mappings, customPrices, currentProjectId, initLoaded]);
+
+  // Project persistence handlers
+  const handleSaveProject = (asNew: boolean = false) => {
+    if (!rabItems || rabItems.length === 0) {
+      alert("Tidak ada data item pekerjaan RAB untuk disimpan. Silakan unggah berkas atau gunakan data contoh terlebih dahulu.");
+      return;
+    }
+
+    let targetId = currentProjectId;
+    if (asNew || !targetId) {
+      targetId = `project_${Date.now()}`;
+      setCurrentProjectId(targetId);
+    }
+
+    const timestamp = new Date().toLocaleString('id-ID', {
+      day: 'numeric',
+      month: 'long',
+      year: 'numeric',
+      hour: '2-digit',
+      minute: '2-digit'
+    }) + " WIB";
+
+    const updatedProj: SavedProject = {
+      id: targetId,
+      savedAt: timestamp,
+      projectName: projectName || 'Pekerjaan Tanpa Nama',
+      projectLocation: projectLocation || 'Lokasi Pekerjaan',
+      ownerName: ownerName || 'Nama Klien / Owner',
+      rabItems,
+      mappings,
+      customPrices
+    };
+
+    let newList: SavedProject[];
+    if (savedProjects.some(p => p.id === targetId)) {
+      newList = savedProjects.map(p => p.id === targetId ? updatedProj : p);
+    } else {
+      newList = [updatedProj, ...savedProjects];
+    }
+
+    setSavedProjects(newList);
+    localStorage.setItem('saved_rab_projects', JSON.stringify(newList));
+    alert(`Proyek "${projectName || 'Pekerjaan'}" berhasil disimpan di penyimpanan lokal browser Anda.`);
+  };
+
+  const handleLoadProject = (id: string) => {
+    const proj = savedProjects.find(p => p.id === id);
+    if (!proj) return;
+
+    setProjectName(proj.projectName);
+    setProjectLocation(proj.projectLocation);
+    setOwnerName(proj.ownerName);
+    setRabItems(proj.rabItems);
+    setMappings(proj.mappings);
+    setCustomPrices(proj.customPrices);
+    setCurrentProjectId(proj.id);
+    
+    // Switch to step 2 automatically for seamless access
+    setActiveTab('mapping');
+  };
+
+  const handleDeleteProject = (id: string, e: React.MouseEvent) => {
+    e.stopPropagation();
+    if (!confirm("Apakah Anda yakin ingin menghapus proyek ini secara permanen dari penyimpanan?")) return;
+
+    const newList = savedProjects.filter(p => p.id !== id);
+    setSavedProjects(newList);
+    localStorage.setItem('saved_rab_projects', JSON.stringify(newList));
+
+    if (currentProjectId === id) {
+      setCurrentProjectId(null);
+    }
+  };
+
+  const handleCreateNewProject = () => {
+    if (!confirm("Mulai estimasi kalkulasi proyek baru? Harap pastikan progres saat ini sudah Anda simpan drafnya agar tidak hilang.")) return;
+    setProjectName('Pembangunan Proyek Baru');
+    setProjectLocation('');
+    setOwnerName('');
+    setRabItems([]);
+    setMappings({});
+    setCustomPrices({ ...REF_PRICES });
+    setCurrentProjectId(null);
+    setActiveTab('upload');
+  };
 
   // Checks server health to detect if Gemini API is available
   useEffect(() => {
@@ -366,6 +504,12 @@ export default function App() {
             setRabItems={setRabItems}
             formatIDR={formatIDR}
             setActiveTab={setActiveTab}
+            savedProjects={savedProjects}
+            currentProjectId={currentProjectId}
+            handleSaveProject={handleSaveProject}
+            handleLoadProject={handleLoadProject}
+            handleDeleteProject={handleDeleteProject}
+            handleCreateNewProject={handleCreateNewProject}
           />
         )}
 

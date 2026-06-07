@@ -236,7 +236,7 @@ app.post("/api/parse-rab", async (req, res): Promise<any> => {
   }
 
   try {
-    let contents: any[] = [];
+    let contents: any;
     let prompt = `Anda adalah ahli estimasi biaya konstruksi sipil Indonesia (civil estimator). 
 Tugas Anda adalah membaca data RAB (Rencana Anggaran Biaya) proyek konstruksi terlampir dan mengekstrak semua item pekerjaan secara akurat ke dalam format JSON. 
 
@@ -254,24 +254,26 @@ Kembalikan data dalam format Array JSON yang murni, tanpa bungkus markdown.`;
 
     if (fileData && fileType === "application/pdf") {
       // PDF file parsing
-      contents = [
-        {
-          inlineData: {
-            data: fileData,
-            mimeType: "application/pdf"
+      contents = {
+        parts: [
+          {
+            inlineData: {
+              data: fileData,
+              mimeType: "application/pdf"
+            }
+          },
+          {
+            text: prompt
           }
-        },
-        prompt
-      ];
+        ]
+      };
     } else {
       // Direct text parsing
       const rawText = textData || "";
       if (!rawText.trim()) {
         return res.status(400).json({ success: false, error: "Tidak ada dokumen atau teks yang dikirimkan." });
       }
-      contents = [
-        `Berikut adalah data teks mentah dari file RAB atau ketikan manual:\n\n${rawText}\n\n---\n\n${prompt}`
-      ];
+      contents = `Berikut adalah data teks mentah dari file RAB atau ketikan manual:\n\n${rawText}\n\n---\n\n${prompt}`;
     }
 
     const response = await ai.models.generateContent({

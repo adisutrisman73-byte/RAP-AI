@@ -84,3 +84,15 @@ export interface ConstructionProject {
   totalRAPAmount: number;
   totalProfit: number;
 }
+
+export interface SavedProject {
+  id: string;
+  savedAt: string;
+  projectName: string;
+  projectLocation: string;
+  ownerName: string;
+  rabItems: RABItem[];
+  mappings: { [rabId: string]: string };
+  customPrices: { [name: string]: number };
+}
+

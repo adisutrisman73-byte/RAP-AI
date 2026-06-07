@@ -1,6 +1,17 @@
 import React from 'react';
-import { Upload, FileText, Sparkles, CheckCircle2, Trash2, Settings, Layers } from 'lucide-react';
-import { RABItem } from '../types';
+import { 
+  Upload, 
+  FileText, 
+  Sparkles, 
+  CheckCircle2, 
+  Trash2, 
+  Settings, 
+  Layers, 
+  Save, 
+  Plus, 
+  History 
+} from 'lucide-react';
+import { RABItem, SavedProject } from '../types';
 
 interface UploadTabProps {
   projectName: string;
@@ -21,6 +32,14 @@ interface UploadTabProps {
   setRabItems: (items: RABItem[]) => void;
   formatIDR: (num: number) => string;
   setActiveTab: (tab: 'upload' | 'mapping' | 'prices' | 'summary') => void;
+  
+  // Storage states & controllers
+  savedProjects: SavedProject[];
+  currentProjectId: string | null;
+  handleSaveProject: (asNew?: boolean) => void;
+  handleLoadProject: (id: string) => void;
+  handleDeleteProject: (id: string, e: React.MouseEvent) => void;
+  handleCreateNewProject: () => void;
 }
 
 export default function UploadTab({
@@ -42,6 +61,12 @@ export default function UploadTab({
   setRabItems,
   formatIDR,
   setActiveTab,
+  savedProjects,
+  currentProjectId,
+  handleSaveProject,
+  handleLoadProject,
+  handleDeleteProject,
+  handleCreateNewProject,
 }: UploadTabProps) {
   return (
     <div className="space-y-6 font-sans">
@@ -149,6 +174,112 @@ export default function UploadTab({
 
         {/* SIDEBAR TEMPLATE CODES */}
         <div className="space-y-6">
+          {/* STORAGE PERSISTENCE PANEL */}
+          <div className="bg-white rounded-2xl border border-slate-200 p-6 shadow-sm space-y-4">
+            <h3 className="font-bold text-sm text-slate-800 flex items-center gap-2">
+              <Save className="h-4.5 w-4.5 text-indigo-600" /> Penyimpanan Proyek
+            </h3>
+            
+            {rabItems.length > 0 ? (
+              <div className="space-y-3 bg-indigo-50/40 border border-indigo-100 rounded-xl p-4">
+                <div className="flex items-center gap-2">
+                  <div className="h-2 w-2 rounded-full bg-emerald-500 animate-pulse" />
+                  <span className="text-[10px] font-bold text-indigo-950 uppercase tracking-wider">
+                    {currentProjectId ? 'Proyek Tersinkron' : 'Konsep Belum Disimpan'}
+                  </span>
+                </div>
+                <p className="text-xs text-slate-500 leading-tight">
+                  {currentProjectId 
+                    ? `Perubahan di proyek "${projectName}" dapat disimpan ke entri saat ini.` 
+                    : "Simpan perhitungan RAB Anda ke daftar penyimpanan lokal agar bisa diakses kembali."
+                  }
+                </p>
+                <div className="pt-2 flex flex-col gap-2">
+                  <button
+                    onClick={() => handleSaveProject(false)}
+                    className="w-full bg-indigo-655 hover:bg-indigo-700 text-white font-bold text-xs py-2.5 px-3 rounded-lg transition-all flex items-center justify-center gap-2 shadow-sm cursor-pointer"
+                  >
+                    <Save className="h-3.5 w-3.5" />
+                    {currentProjectId ? 'Perbarui Estimasi' : 'Daftarkan Estimasi Baru'}
+                  </button>
+                  {currentProjectId && (
+                    <button
+                      onClick={() => handleSaveProject(true)}
+                      className="w-full bg-white hover:bg-slate-50 text-indigo-700 border border-indigo-200 font-bold text-xs py-2 px-3 rounded-lg transition-all flex items-center justify-center gap-1.5 cursor-pointer"
+                    >
+                      <Plus className="h-3.5 w-3.5" />
+                      Simpan sebagai Duplikat
+                    </button>
+                  )}
+                </div>
+              </div>
+            ) : (
+              <p className="text-xs text-slate-400 bg-slate-50 p-4 rounded-xl border border-slate-150 leading-relaxed">
+                Unggah berkas PDF RAB atau jalankan Simulasi Contoh di bawah ini untuk dapat mengaktifkan & mencoba penyimpanan estimasi.
+              </p>
+            )}
+
+            {/* List of Saved Projects */}
+            <div className="space-y-2.5 pt-3 border-t border-slate-100">
+              <div className="flex items-center justify-between">
+                <span className="text-[10px] font-bold text-slate-450 uppercase tracking-widest flex items-center gap-1.5">
+                  <History className="h-3.5 w-3.5 text-slate-400" /> Daftar Estimasi
+                </span>
+                {rabItems.length > 0 && (
+                  <button
+                    onClick={handleCreateNewProject}
+                    className="text-[10px] bg-slate-100 hover:bg-slate-200 text-slate-705 px-2.5 py-1 rounded-md font-bold transition-all flex items-center gap-1 cursor-pointer"
+                  >
+                    <Plus className="h-3 w-3" /> Baru
+                  </button>
+                )}
+              </div>
+
+              {savedProjects.length === 0 ? (
+                <div className="text-center py-6 text-slate-400 text-xs">
+                  Belum ada proyek tersimpan.
+                </div>
+              ) : (
+                <div className="space-y-2 max-h-56 overflow-y-auto pr-1">
+                  {savedProjects.map((proj) => {
+                    const isSelected = currentProjectId === proj.id;
+                    return (
+                      <div
+                        key={proj.id}
+                        onClick={() => handleLoadProject(proj.id)}
+                        className={`group p-3 rounded-xl border text-left cursor-pointer transition-all flex items-start justify-between gap-2.5 ${
+                          isSelected
+                            ? 'bg-indigo-50/50 border-indigo-200 hover:bg-indigo-50 shadow-xs'
+                            : 'bg-white border-slate-200 hover:bg-slate-50'
+                        }`}
+                      >
+                        <div className="min-w-0 flex-1">
+                          <h5 className={`text-xs font-bold truncate ${isSelected ? 'text-indigo-950 font-extrabold' : 'text-slate-800'}`}>
+                            {proj.projectName}
+                          </h5>
+                          <p className="text-[9px] text-slate-450 truncate mt-0.5">
+                            {proj.ownerName || 'Tanpa Owner'} • {proj.projectLocation || 'Tanpa Lokasi'}
+                          </p>
+                          <span className="text-[9px] text-slate-400 font-mono block mt-1">
+                            {proj.savedAt}
+                          </span>
+                        </div>
+                        <button
+                          onClick={(e) => handleDeleteProject(proj.id, e)}
+                          className="text-slate-350 hover:text-rose-650 p-1 rounded-lg hover:bg-rose-50 transition-colors"
+                          title="Hapus proyek"
+                        >
+                          <Trash2 className="h-3.5 w-3.5" />
+                        </button>
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
+            </div>
+          </div>
+
+          {/* SIMULATOR CARD */}
           <div className="bg-slate-900 text-white rounded-2xl p-6 shadow-xl relative overflow-hidden flex flex-col justify-between min-h-[350px] border border-slate-800">
             <div className="absolute top-0 right-0 h-44 w-44 bg-indigo-500/10 rounded-full blur-2xl" />
             
